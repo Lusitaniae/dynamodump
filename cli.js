@@ -44,6 +44,7 @@ const cli = meow(`
       --endpoint Endpoint URL for DynamoDB Local
       --dry-run Report the actions that would be made without actually runnning them.
 
+
     Examples
       dynamodump export-schema --region=eu-west-1 --table=your-table --file=your-schema-dump
       dynamodump import-schema --region=eu-west-1 --file=your-schema-dump --table=your-table --wait-for-active
@@ -299,7 +300,9 @@ function importDataCli(cli) {
 
   let n = 0;
 
-  const logProgress = () => console.error('Imported', n, 'items');
+  const logProgress = () => {
+    quietLogging('Imported' + n + 'items')
+  };
   const logThrottled = _.throttle(logProgress, 5000, { trailing: false });
 
   readStream.pipe(parseStream)
@@ -344,6 +347,17 @@ function exportDataCli(cli) {
   return exportData(tableName, cli.flags.file, cli.flags.region, cli.flags.endpoint);
 }
 
+function randomInt(low, high) {
+  return Math.floor(Math.random() * (high - low + 1) + low)
+}
+
+function quietLogging(message) {
+  // read 10 from env variable
+  if(randomInt(0,10) === 0){
+    console.error(message)
+  }
+}
+
 function exportAllDataCli(cli) {
   const region = cli.flags.region;
   const endpoint = cli.flags.endpoint;
@@ -379,7 +393,8 @@ function exportData(tableName, file, region, endpoint) {
         });
 
         n += data.Items.length;
-        console.error('Exported', n, 'items');
+        quietLogging('Exported ' + n + ' items');
+
 
         if (data.LastEvaluatedKey !== undefined) {
           params.ExclusiveStartKey = data.LastEvaluatedKey;
@@ -436,7 +451,7 @@ function wipeDataCli(cli) {
   return wipeData(tableName, cli.flags.region, cli.flags.endpoint, throughput);
 }
 
-function wipeData(tableName, region, endpoint, throughput) {
+function wipeData(tableName, region, endpoint, throughput,) {
   const dynamoDb = new AWS.DynamoDB({ region });
   if 
       (endpoint) dynamoDb.endpoint = endpoint;
@@ -458,9 +473,10 @@ function wipeData(tableName, region, endpoint, throughput) {
           };
           return dynamoDb.deleteItem(delParams).promise();
         }).then(() => {
+   
           n += data.Items.length;
-          console.error('Wiped', n, 'items');
-
+          quietLogging('Wiped' + n + 'items');
+          
           if (data.LastEvaluatedKey !== undefined) {
             params.ExclusiveStartKey = data.LastEvaluatedKey;
             return scanPage(keyFields);
